@@ -12,34 +12,33 @@ enum FileStatus {
   Uploading = '文件上传中...',
   Parsing = '正在解析文件...',
   Success = '解析成功',
-  Error = '解析失败',
+  Error = '解析失败：请上传有效的 CSV 文件',
 }
 
 const FileConverter: React.FC = () => {
-  const [file, setFile] = useState<File | null>(null);
   const [data, setData] = useState<CSVData[]>([]);
   const [status, setStatus] = useState<FileStatus>(FileStatus.Idle);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 5;
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file && file.name.endsWith('.csv')) {
-      setFile(file);
-      parseCSV(file);
-    } else {
+  // 通用文件处理逻辑
+  const processFile = (file: File) => {
+    if (!file.name.endsWith('.csv')) {
       setStatus(FileStatus.Error);
+      return;
     }
-  };
 
-  const parseCSV = (file: File) => {
     setStatus(FileStatus.Parsing);
     Papa.parse<CSVData>(file, {
       header: true,
       skipEmptyLines: true,
       complete: (results) => {
-        setData(results.data);
-        setStatus(FileStatus.Success);
+        if (results.data.length) {
+          setData(results.data);
+          setStatus(FileStatus.Success);
+        } else {
+          setStatus('解析失败：CSV 文件为空' as FileStatus);
+        }
       },
       error: () => {
         setStatus(FileStatus.Error);
@@ -47,21 +46,22 @@ const FileConverter: React.FC = () => {
     });
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
+  // 文件上传处理
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) processFile(file);
   };
+
+  // 拖放处理
+  const handleDragOver = (e: React.DragEvent) => e.preventDefault();
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     const file = e.dataTransfer.files[0];
-    if (file && file.name.endsWith('.csv')) {
-      setFile(file);
-      parseCSV(file);
-    } else {
-      setStatus(FileStatus.Error);
-    }
+    if (file) processFile(file);
   };
 
+  // 文件下载
   const downloadFile = (dataString: string, type: string, filename: string) => {
     const blob = new Blob([dataString], { type });
     const url = URL.createObjectURL(blob);
@@ -100,10 +100,12 @@ const FileConverter: React.FC = () => {
     downloadFile(xml, 'application/xml', 'converted.xml');
   };
 
+  // 分页数据
   const paginatedData = data.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
+  // 页码重置
   useEffect(() => {
-    if (data.length && currentPage > Math.ceil(data.length / pageSize)) {
+    if (currentPage > Math.ceil(data.length / pageSize)) {
       setCurrentPage(1);
     }
   }, [data, currentPage, pageSize]);
@@ -132,78 +134,78 @@ const FileConverter: React.FC = () => {
       {status && <div className="text-center mb-6 text-gray-600">{status}</div>}
 
       {data.length > 0 && (
-        <div className="flex justify-center gap-4">
-          <button
-            onClick={downloadJSON}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-          >
-            <FileJson className="h-5 w-5" />
-            下载 JSON
-          </button>
-          <button
-            onClick={downloadExcel}
-            className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
-          >
-            <FileSpreadsheet className="h-5 w-5" />
-            下载 Excel
-          </button>
-          <button
-            onClick={downloadXML}
-            className="flex items-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600"
-          >
-            <FileCode className="h-5 w-5" />
-            下载 XML
-          </button>
-        </div>
-      )}
+        <>
+          <div className="flex justify-center gap-4">
+            <button
+              onClick={downloadJSON}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+            >
+              <FileJson className="h-5 w-5" />
+              下载 JSON
+            </button>
+            <button
+              onClick={downloadExcel}
+              className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
+            >
+              <FileSpreadsheet className="h-5 w-5" />
+              下载 Excel
+            </button>
+            <button
+              onClick={downloadXML}
+              className="flex items-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600"
+            >
+              <FileCode className="h-5 w-5" />
+              下载 XML
+            </button>
+          </div>
 
-      {data.length > 0 && (
-        <div className="mt-8">
-          <h2 className="text-xl font-semibold mb-4">数据预览</h2>
-          <div className="overflow-x-auto bg-white rounded-lg shadow">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  {Object.keys(data[0]).map((key) => (
-                    <th key={key} className="px-4 py-2 text-left text-sm font-medium text-gray-600">
-                      {key}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {paginatedData.map((row, i) => (
-                  <tr key={i}>
-                    {Object.values(row).map((value, j) => (
-                      <td key={j} className="px-4 py-2 text-sm text-gray-900">
-                        {String(value)}
-                      </td>
+          <div className="mt-8">
+            <h2 className="text-xl font-semibold mb-4">数据预览</h2>
+            <div className="overflow-x-auto bg-white rounded-lg shadow">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    {Object.keys(data[0]).map((key) => (
+                      <th key={key} className="px-4 py-2 text-left text-sm font-medium text-gray-600">
+                        {key}
+                      </th>
                     ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {paginatedData.map((row, i) => (
+                    <tr key={i}>
+                      {Object.values(row).map((value, j) => (
+                        <td key={j} className="px-4 py-2 text-sm text-gray-900">
+                          {String(value)}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="flex justify-between mt-4">
+              <button
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((p) => p - 1)}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:opacity-50"
+              >
+                上一页
+              </button>
+              <button
+                disabled={currentPage * pageSize >= data.length}
+                onClick={() => setCurrentPage((p) => p + 1)}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:opacity-50"
+              >
+                下一页
+              </button>
+            </div>
+            <p className="text-gray-500 text-sm mt-2">
+              显示第 {currentPage} 页，共 {Math.ceil(data.length / pageSize)} 页
+            </p>
           </div>
-          <div className="flex justify-between mt-4">
-            <button
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage((p) => p - 1)}
-              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:opacity-50"
-            >
-              上一页
-            </button>
-            <button
-              disabled={currentPage * pageSize >= data.length}
-              onClick={() => setCurrentPage((p) => p + 1)}
-              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:opacity-50"
-            >
-              下一页
-            </button>
-          </div>
-          <p className="text-gray-500 text-sm mt-2">
-            显示第 {currentPage} 页，共 {Math.ceil(data.length / pageSize)} 页
-          </p>
-        </div>
+        </>
       )}
     </div>
   );
