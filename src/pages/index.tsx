@@ -29,6 +29,7 @@ const Home: NextPage = () => {
         <meta name="author" content="RemitX" />
         <link rel="canonical" href="https://csvconverter.xcoff.ee" />
         <link rel="icon" href="/favicon.ico" />
+        <script defer data-domain="csvconverter.xcoff.ee" src="https://view.xcoff.ee/js/script.js"></script>
       </Head>
 
       <main className="min-h-screen bg-gray-50 py-12">
